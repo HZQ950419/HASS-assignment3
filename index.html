@@ -1,0 +1,147 @@
+<!doctype html>
+<html>
+<head>
+		<title>Singapore Resale Flat Price</title>
+		<script src="https://d3js.org/d3.v4.min.js"></script>
+		<script src="//d3js.org/topojson.v1.min.js"></script>
+		<script src="https://d3js.org/d3-geo.v1.min.js"></script>
+</head>
+<style>
+ body {
+		margin: 0;
+		padding: 0;
+		font-family: 'Inconsolata', 'Courier New', monospace;
+		text-align: center;
+	}
+
+  .viz{
+  background-color: #deebf7;
+}
+
+  #tooltip {
+    font-size: 12px;
+    position: absolute;
+    width: auto;
+    height: auto;
+    padding: 2.5px;
+    border:1px solid black;
+    background: rgb(250, 250, 250);
+    background: rgba(250, 250, 250, 0.8);
+    -webkit-border-radius: 3px;
+    -moz-border-radius: 3px;
+    border-radius: 3px;
+    pointer-events: none;
+  }
+
+  #tooltip.hidden {
+    display: none;
+  }
+
+  path.area{
+    stroke-width:0.3;
+    /*fill: white;*/
+    stroke: black;
+  }
+
+  path.area.highlight{
+    fill:#78c679;
+  }
+</style>
+<body>
+    <div id="tooltip" class="hidden" >
+        <p><span id="value"></p>
+    </div>
+    <h1 style="text-align: center;">The Average Resale Flat Price in Difference Areas in Singapore</h1>
+	<p style="text-align: center;">
+    <em>This visualizaiton is based on the 2022-03 data from </em><a href="https://data.gov.sg/dataset/resale-flat-prices" target="_blank">Resale Flat Prices - data.gov.sg</a>
+</p>
+</body>
+<script>
+  var margin = {top: 10, right: 10, bottom: 10, left: 10},
+          padding = {top: 10, right: 10, bottom: 10, left: 10},
+          vizWidth = 960,
+          vizHeight = 500,
+          plotWidth = vizWidth - margin.left - margin.right,
+          plotHeight = vizHeight - margin.top - margin.bottom,
+          panelWidth = plotWidth - padding.left - padding.right,
+          panelHeight = plotHeight - padding.top - padding.bottom;
+
+  var viz = d3.select("body").append("svg")
+          .classed("viz",true)
+          .attr("width", vizWidth)
+          .attr("height", vizHeight);
+
+  var plot = viz.append("g")
+          .attr("class","plot")
+          .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+  var panel = plot.append("g")
+		.attr("class","panel")
+        .attr("transform", "translate(" + padding.left + "," + padding.top + ")");
+
+  var div = d3.select("body").append("div")
+        .attr("class", "tooltip")
+        .style("display", "none");
+
+//Important Functions
+  function drawTooltip(d) {
+          console.log(d);
+          var xPosition = d3.event.pageX;
+          var yPosition = d3.event.pageY;
+
+          d3.select("#tooltip")
+              .classed("hidden",false)
+              .style("left", xPosition + "px")
+              .style("top", yPosition + "px")
+	          .text(`${d.properties.PLN_AREA_N}` + '\t Avg Price \t' + `${d.properties.price}` + '\$/sqm');
+  }
+
+  function mouseout() {
+      d3.select("#tooltip").classed("hidden", true);
+      d3.select(this).classed("highlight",false)
+  }
+
+
+  d3.json("sg plan area 20170903.json", function(sg) {
+	  d3.json("resale_price_data_2022_3.json", function (data) {
+
+        // let colors = d3.scale.linear()
+        //             .domain([0, 9])
+        //             .range(["white", "darkblue"]);
+		  for (let i = 0; i < sg.features.length; i++){
+			  if (sg.features[i].properties.PLN_AREA_N in data){
+				  sg.features[i]['properties']['price'] = data[sg.features[i].properties.PLN_AREA_N]
+			  }
+			  else {
+				  sg.features[i]['properties']['price'] = 0
+			  }
+		  }
+		  console.log(sg.features[0])
+		  var projection = d3.geoMercator().fitSize([panelWidth,panelHeight],sg),
+				geoPath = d3.geoPath(projection);
+
+        // sg.features.price = 'pre';
+        // // console.log(sg.price)
+        //
+
+		  let color = d3.scaleLinear()
+						.domain([0.5, 1])
+						.range(["white", "MediumBlue"]);
+
+		  viz.selectAll("path")
+				.data(sg.features)
+				.enter()
+				.append("path")
+						.attr("d",geoPath)
+						.classed("area",true)
+						.attr("fill", function (d){
+							return color(d.properties.price/7596);
+						})
+						.on('mouseover', function(d) {
+							d3.select(this);
+							drawTooltip(d);})
+						.on('mouseout',mouseout);
+
+});});
+</script>
+</html>
